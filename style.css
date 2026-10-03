@@ -2,6 +2,7 @@
 
 body[data-chapter="2"] .mast-note,body[data-chapter="3"] .mast-note,body[data-chapter="4"] .mast-note{opacity:0}.weather .stage,.night .stage,.dawn .stage{top:30svh}@media(max-width:700px){.weather .stage,.night .stage,.dawn .stage{top:28svh}}
 
-@media(prefers-reduced-motion:no-preference){.panel .stage{opacity:calc(.34 + var(--entry, 1)*.66 - var(--leave, 0)*.28);transform:translate3d(0,calc((1 - var(--entry, 1))*42px - var(--leave, 0)*35px),0);will-change:transform,opacity}}
+@media(prefers-reduced-motion:no-preference){.panel .stage{opacity:calc((.34 + var(--entry, 1)*.66)*(1 - min(1,max(0,(var(--leave, 0) - .06)/.14))));transform:translate3d(0,calc((1 - var(--entry, 1))*42px - var(--leave, 0)*35px),0);will-change:transform,opacity}}
 
 @media(min-width:701px){.weather .stage{top:25svh}}
+.panel .vertical{opacity:calc(1 - min(1,max(0,(var(--leave, 0) - .06)/.14)))}

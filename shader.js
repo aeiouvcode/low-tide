@@ -1,6 +1,6 @@
 const canvas=document.querySelector('canvas'),gl=canvas.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'});
 window.__gl=gl;window.onerror=(m,s,l,c)=>{document.body.dataset.error=m+" @ "+l+":"+c};
-if(!gl){document.body.classList.add('no-webgl')}else{
+if(!gl){document.body.classList.add('no-webgl')}else{canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();document.body.classList.add('no-webgl')});
 const vertex=`#version 300 es
 void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.-1.,0.,1.);}`;
 const fragment=`#version 300 es
@@ -24,13 +24,13 @@ void setScene(float s){
   if(s<1.)sunDir=normalize(mix(dSun,dStorm,s));
   else if(s<2.)sunDir=normalize(mix(dStorm,dMoon,s-1.));
   else sunDir=normalize(mix(dMoon,dDawn,s-2.));
-  vec3 cDusk=vec3(1.,.42,.15)*1.6,cStorm=vec3(.55,.62,.7)*.55,cNight=vec3(.6,.72,1.)*.8,cDawn=vec3(1.,.62,.38)*1.1;
+  vec3 cDusk=vec3(1.,.42,.15)*1.6,cStorm=vec3(.55,.62,.7)*.55,cNight=vec3(.6,.72,1.)*.8,cDawn=vec3(1.,.6,.36)*1.3;
   if(s<1.)sunCol=mix(cDusk,cStorm,s);else if(s<2.)sunCol=mix(cStorm,cNight,s-1.);else sunCol=mix(cNight,cDawn,s-2.);
   waveAmp=mix(.28,1.25,storm);waveAmp=mix(waveAmp,.42,nightF);waveAmp=mix(waveAmp,.16,dawn);
   choppy=mix(1.4,2.6,storm);choppy=mix(choppy,1.2,nightF);choppy=mix(choppy,.7,dawn);
   windSpd=mix(1.,2.2,storm);
   fogAmt=.16+.30*storm+.12*nightF;
-  cloudCov=mix(.34,.86,storm);cloudCov=mix(cloudCov,.28,nightF);cloudCov=mix(cloudCov,.5,dawn);
+  cloudCov=mix(.34,.86,storm);cloudCov=mix(cloudCov,.28,nightF);cloudCov=mix(cloudCov,.4,dawn);
   // cinematic camera: low and intimate at dusk/night/dawn, high survey in storm
   camH=mix(2.2,5.6,storm);camH=mix(camH,2.6,nightF);camH=mix(camH,1.9,dawn);
   camPitch=mix(-.20,-.34,storm);camPitch=mix(camPitch,-.19,nightF);camPitch=mix(camPitch,-.17,dawn);
@@ -40,7 +40,7 @@ vec3 skyGrad(vec3 d){
   vec3 horizonDusk=vec3(.98,.44,.18),zenithDusk=vec3(.10,.16,.28);
   vec3 horizonStorm=vec3(.32,.38,.44),zenithStorm=vec3(.10,.13,.17);
   vec3 horizonNight=vec3(.05,.09,.17),zenithNight=vec3(.012,.02,.05);
-  vec3 horizonDawn=vec3(.86,.55,.42),zenithDawn=vec3(.22,.34,.47);
+  vec3 horizonDawn=vec3(.99,.6,.44),zenithDawn=vec3(.25,.34,.46);
   float s=scene;vec3 hz,zn;
   if(s<1.){hz=mix(horizonDusk,horizonStorm,s);zn=mix(zenithDusk,zenithStorm,s);}
   else if(s<2.){hz=mix(horizonStorm,horizonNight,s-1.);zn=mix(zenithStorm,zenithNight,s-1.);}
@@ -68,11 +68,11 @@ vec3 sky(vec3 d,float gls){
     vec2 sp=vec2(atan(sd3.x,sd3.z),sd3.y)*160.;
     vec2 cell=floor(sp);vec2 f=fract(sp);
     float h=hash(cell);
-    if(h>.985){
+    if(h>.975){
       vec2 spos=vec2(hash(cell+3.1),hash(cell+9.7))*.8+.1;
       float dstar=length(f-spos);
       float tw=.55+.45*sin(t*1.5+h*80.);
-      col+=vec3(.75,.83,1.)*smoothstep(.09,.01,dstar)*tw*nightF*smoothstep(.04,.2,d.y)*.5;
+      col+=vec3(.75,.83,1.)*smoothstep(.09,.01,dstar)*tw*nightF*smoothstep(.04,.2,d.y)*.62;
     }
   }
   if(rainF>0.01){
@@ -96,7 +96,7 @@ float waveH(vec2 p){
   float h=0.;float d=length(p);
   for(int i=0;i<NW;i++){
     float k=6.28318/gLen[i];
-    float f=k*dot(gDir[i],p)-gSpd[i]*k*t*windSpd*3.;
+    float f=k*dot(gDir[i],p)-(.131*sqrt(gLen[i]))*k*t*windSpd*3.;
     float lod=smoothstep(gLen[i]*1.2,gLen[i]*4.5,d+gLen[i]);
     h+=gAmp[i]*waveAmp*mix(1.,.12,lod)*sin(f);
   }
@@ -120,7 +120,7 @@ vec3 waveN(vec2 p,float eps){
     vec2 dq2=r1*dp*2.3+vec2(t*.7,t*.4);
     float m0=fbm(dq2),mx=fbm(dq2+vec2(e,0.)),mz=fbm(dq2+vec2(0.,e));
     float nearBoost=smoothstep(30.,8.,d);
-    n=normalize(n+vec3((n0-nx)+(m0-mx)*.6,0.,(n0-nz)+(m0-mz)*.6)*det*(.34+choppy*.1)*(1.+nearBoost*.9));
+    n=normalize(n+vec3((n0-nx)+(m0-mx)*.6,0.,(n0-nz)+(m0-mz)*.6)*det*(.19+choppy*.06)*(1.+nearBoost*.9));
   }
   return n;
 }
@@ -136,17 +136,18 @@ float march(vec3 ro,vec3 rd,out vec3 hit){
   if(rd.y>-0.01&&ro.y>waveAmp*1.6){hit=ro+rd*hi;return -1.;}
   float tmin=(ro.y-waveAmp*1.6)/min(rd.y,-0.001);
   float tm=max(tmin,0.);
-  float step_=8.;
+  float step_=6.;
+  tm+=step_*fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*.7;
   float prevT=tm,prevDh=ro.y+rd.y*tm-waveH(ro.xz+rd.xz*tm);
   if(prevDh<0.){hit=ro+rd*tm;return tm;}
   for(int i=0;i<64;i++){
-    float tt=tm+float(i)*step_;
+    float tt=prevT+step_;if(i==0)tt=prevT;
     if(tt>hi)break;
     vec3 p=ro+rd*tt;
     float dh=p.y-waveH(p.xz);
     if(dh<0.){
       float a=prevT,b=tt;
-      for(int j=0;j<6;j++){
+      for(int j=0;j<8;j++){
         float m=(a+b)*.5;
         vec3 mp=ro+rd*m;
         if(mp.y-waveH(mp.xz)<0.)b=m;else a=m;
@@ -154,7 +155,7 @@ float march(vec3 ro,vec3 rd,out vec3 hit){
       hit=ro+rd*a;return a;
     }
     prevT=tt;prevDh=dh;
-    step_=min(step_*1.05,26.);
+    step_=min(step_*1.07,26.);
   }
   hit=ro+rd*hi;return -1.;
 }
@@ -213,9 +214,9 @@ void main(){
   float gr=(hash(gl_FragCoord.xy+floor(tg*11.))-.5)*.014;
   frag=vec4(col+gr,1.);
 }`;
-function compile(type,src){let s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
+function compile(type,src){let s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){document.body.classList.add('no-webgl');throw Error(gl.getShaderInfoLog(s))}return s}
 let program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,vertex));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(program);
-if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+if(!gl.getProgramParameter(program,gl.LINK_STATUS)){document.body.classList.add('no-webgl');throw Error(gl.getProgramInfoLog(program))}
 gl.useProgram(program);
 let uRes=gl.getUniformLocation(program,'res'),uT=gl.getUniformLocation(program,'t'),uScene=gl.getUniformLocation(program,'scene'),uTg=gl.getUniformLocation(program,'tg');
 let frame=0,elapsed=0,last=0;
